@@ -2,19 +2,49 @@ import java.awt.*;
 import java.awt.event.*; 
 import javax.swing.*;
 import javax.swing.event.*;
+import java.util.*;
+
+class Shape {
+    int start_x;
+    int start_y;
+    int width;
+    int height;
+    Color color;
+    String type;
+
+    public void showValues() {
+        System.out.println( start_x + ", " + start_y + ", " + width + ", " + height );
+    }
+}
 
 class ShapePallete extends Panel {
     public ShapePallete( ) {
         this.setLayout( new GridLayout( 3, 1, 10, 10 ) );
         this.setBounds( 50, 50, 300, 140 );
 
-        Button lineButton = new Button("Square"); 
-        lineButton.addActionListener( new ActionListener() {
+        Button penButton = new Button("Pen"); 
+        penButton.addActionListener( new ActionListener() {
             public void actionPerformed( ActionEvent ae ) {
-                Canvas.tool = "sqaure";
+                Canvas.tool = "pen";
             }
         });
-        this.add(lineButton);
+        this.add( penButton );
+
+        Button squareButton = new Button("Square"); 
+        squareButton.addActionListener( new ActionListener() {
+            public void actionPerformed( ActionEvent ae ) {
+                Canvas.tool = "square";
+            }
+        });
+        this.add( squareButton );
+
+        Button ovalButton = new Button("Oval"); 
+        ovalButton.addActionListener( new ActionListener() {
+            public void actionPerformed( ActionEvent ae ) {
+                Canvas.tool = "oval";
+            }
+        });
+        this.add( ovalButton);
     }
 }
 
@@ -120,6 +150,7 @@ class ToolBar extends Panel {
         clearAllButton.addActionListener( new ActionListener() {
             public void actionPerformed( ActionEvent ae ) {
                 MyCanvas.repaint();
+                Canvas.shapes.clear();
             }
         });
 
@@ -129,17 +160,36 @@ class ToolBar extends Panel {
 
 class Canvas extends Panel {
     Graphics g; 
+
+    // variables required for drawing using pen
     static String tool = "pen";
     static Color penColor = Color.BLACK;
     static int penThickness = 1;
+    
+    // variables required for drawing shapes
     boolean first = true;
     int previous_x, previous_y;
+    int currentX, currentY;
     int initial_x, initial_y;
+    String previousDirection="";
+
+    boolean penInput = true;
+    static Vector<Shape> shapes = new Vector<Shape>();
+    Shape shape;
+
+    // variables required for key Events
+    boolean ControlPressed = false;
 
     class MyListener extends MouseInputAdapter {
         public void mouseDragged( MouseEvent me ) {
+            penInput = false;
             g = getGraphics();
             g.setColor( penColor );
+
+            shape = new Shape();
+
+            currentX = me.getX();
+            currentY = me.getY();
 
             if( first ) {
                 initial_x = me.getX(); 
@@ -150,45 +200,280 @@ class Canvas extends Panel {
                 first = false;
             }
 
-            if( tool.equals( "pen" ) ) {
-                g.drawLine( previous_x, previous_y, me.getX(), me.getY() );
+            if( tool.equals( "pen" ) ) 
+            {
+                penInput = true;
+                g.drawLine( previous_x, previous_y, currentX, currentY );
 
                 if( penThickness >= 2 ) {
-                    g.drawLine( previous_x+1, previous_y-1, me.getX()+1, me.getY()-1 );
+                    g.drawLine( previous_x+1, previous_y-1, currentX+1, currentY-1 );
                 }
                 if( penThickness >= 3 ) {
-                    g.drawLine( previous_x-1, previous_y+1, me.getX()-1, me.getY()+1 );
+                    g.drawLine( previous_x-1, previous_y+1, currentX-1, currentY+1 );
                 }
                 if( penThickness >= 4 ) {
-                    g.drawLine( previous_x-2, previous_y+2, me.getX()-2, me.getY()+2 );
+                    g.drawLine( previous_x-2, previous_y+2, currentX-2, currentY+2 );
+                }  
+            }
+            else if( tool.equals("square") ) 
+            {
+                if( previousDirection.equals( "NE" ) ) {
+                    g.setColor( Color.WHITE);
+                    g.drawRect( previous_x, previous_y, initial_x - previous_x, initial_y - previous_y );
                 }
-                
-                previous_x = me.getX();
-                previous_y = me.getY();
+                else if( previousDirection.equals( "SE" ) ) {
+                    g.setColor( Color.WHITE );
+                    g.drawRect( previous_x, initial_y, initial_x - previous_x, previous_y - initial_y );
+                }
+                else if( previousDirection.equals( "NW" ) ) {
+                    g.setColor( Color.WHITE);
+                    g.drawRect( initial_x, previous_y, previous_x - initial_x, initial_y - previous_y );
+                }
+                else if( previousDirection.equals( "SW" ) ) {
+                    g.setColor( Color.WHITE );
+                    g.drawRect( initial_x, initial_y, previous_x - initial_x , previous_y - initial_y );
+                }
+
+                if( currentX < initial_x && currentY < initial_y ) {
+                    g.setColor( Color.WHITE);
+                    g.drawRect( previous_x, previous_y, initial_x - previous_x, initial_y - previous_y );
+
+                    g.setColor( penColor );
+                    g.drawRect( currentX, currentY, initial_x - currentX, initial_y - currentY) ;                
+
+                    shape.start_x = currentX; 
+                    shape.start_y = currentY; 
+                    shape.width = initial_x - currentX;
+                    shape.height = initial_y - currentY;
+                    shape.color = penColor;
+                    shape.type = "rect";
+
+                    previousDirection = "NE";
+                }
+                if( currentX < initial_x && currentY > initial_y ) {
+                    g.setColor( Color.WHITE );
+                    g.drawRect( previous_x, initial_y, initial_x - previous_x, previous_y - initial_y );
+
+                    g.setColor( penColor );
+                    g.drawRect( currentX, initial_y, initial_x - currentX, currentY - initial_y) ;                
+
+                    shape.start_x = currentX; 
+                    shape.start_y = initial_y; 
+                    shape.width = initial_x - currentX;
+                    shape.height = currentY - initial_y;
+                    shape.color = penColor;
+                    shape.type = "rect";
+
+                    previousDirection = "SE";
+                }
+                if( currentX > initial_x && currentY < initial_y ) {
+                    g.setColor( Color.WHITE);
+                    g.drawRect( initial_x, previous_y, previous_x - initial_x, initial_y - previous_y );
+
+                    g.setColor( penColor );
+                    g.drawRect( initial_x, currentY, currentX - initial_x, initial_y - currentY) ;                
+
+                    shape.start_x = initial_x; 
+                    shape.start_y = currentY; 
+                    shape.width = currentX - initial_x;
+                    shape.height = initial_y - currentY;
+                    shape.color = penColor;
+                    shape.type = "rect";
+
+                    previousDirection = "NW";
+                }
+                if( currentX > initial_x && currentY > initial_y ) {
+                    g.setColor( Color.WHITE);
+                    g.drawRect( initial_x, initial_y, previous_x - initial_x , previous_y - initial_y );
+
+                    g.setColor( penColor );
+                    g.drawRect( initial_x, initial_y, currentX - initial_x, currentY - initial_y );                
+
+                    shape.start_x = initial_x; 
+                    shape.start_y = initial_y; 
+                    shape.width = currentX - initial_x;
+                    shape.height = currentY - initial_y;
+                    shape.color = penColor;
+                    shape.type = "rect";
+
+                    previousDirection = "SW";
+                }
             }
-            else if( tool.equals("sqaure") ) {
-                System.out.println("Square");
+            else if( tool.equals("oval") ) 
+            {
+                currentX = me.getX();
+                currentY = me.getY();
 
-                g.setColor( penColor );
-                g.drawRect( initial_x, initial_y, me.getX() - previous_x, me.getY() - previous_y );
+                if( previousDirection.equals( "NE" ) ) {
+                    g.setColor( Color.WHITE);
+                    g.drawOval( previous_x, previous_y, initial_x - previous_x, initial_y - previous_y );
+                }
+                else if( previousDirection.equals( "SE" ) ) {
+                    g.setColor( Color.WHITE );
+                    g.drawOval( previous_x, initial_y, initial_x - previous_x, previous_y - initial_y );
 
-                g.setColor( Color.WHITE );
-                g.drawRect( initial_x, initial_y, previous_x - initial_x, previous_y - initial_y );
+                }
+                else if( previousDirection.equals( "NW" ) ) {
+                    g.setColor( Color.WHITE);
+                    g.drawOval( initial_x, previous_y, previous_x - initial_x, initial_y - previous_y );
+                }
+                else if( previousDirection.equals( "SW" ) ) {
+                    g.setColor( Color.WHITE );
+                    g.drawOval( initial_x, initial_y, previous_x - initial_x , previous_y - initial_y );
+                }
+
+                if( currentX < initial_x && currentY < initial_y ) {
+                    g.setColor( Color.WHITE);
+                    g.drawOval( previous_x, previous_y, initial_x - previous_x, initial_y - previous_y );
+
+                    g.setColor( penColor );
+                    g.drawOval( currentX, currentY, initial_x - currentX, initial_y - currentY) ;                
+
+                    shape.start_x = currentX; 
+                    shape.start_y = currentY; 
+                    shape.width = initial_x - currentX;
+                    shape.height =  initial_y - currentY;
+                    shape.color = penColor;
+                    shape.type = "oval";
+
+                    previousDirection = "NE";
+                }
+                if( currentX < initial_x && currentY > initial_y ) {
+                    g.setColor( Color.WHITE );
+                    g.drawOval( previous_x, initial_y, initial_x - previous_x, previous_y - initial_y );
+
+                    g.setColor( penColor );
+                    g.drawOval( currentX, initial_y, initial_x - currentX, currentY - initial_y) ;                
+
+                    shape.start_x = currentX; 
+                    shape.start_y = initial_y; 
+                    shape.width = initial_x - currentX;
+                    shape.height = currentY - initial_y;
+                    shape.color = penColor;
+                    shape.type = "oval";
+
+                    previousDirection = "SE";
+                }
+                if( currentX > initial_x && currentY < initial_y ) {
+                    g.setColor( Color.WHITE);
+                    g.drawOval( initial_x, previous_y, previous_x - initial_x, initial_y - previous_y );
+
+                    g.setColor( penColor );
+                    g.drawOval( initial_x, currentY, currentX - initial_x, initial_y - currentY) ;                
+
+                    shape.start_x = initial_x; 
+                    shape.start_y = currentY; 
+                    shape.width = currentX - initial_x;
+                    shape.height = initial_y - currentY;
+                    shape.color = penColor;
+                    shape.type = "oval";
+
+                    previousDirection = "NW";
+                }
+                if( currentX > initial_x && currentY > initial_y ) {
+                    g.setColor( Color.WHITE);
+                    g.drawOval( initial_x, initial_y, previous_x - initial_x , previous_y - initial_y );
+
+                    g.setColor( penColor );
+                    g.drawOval( initial_x, initial_y, currentX - initial_x, currentY - initial_y );                
+
+                    shape.start_x = initial_x; 
+                    shape.start_y = initial_y; 
+                    shape.width = currentX - initial_x;
+                    shape.height = currentY - initial_y;
+                    shape.color = penColor;
+                    shape.type = "oval";
+
+                    previousDirection = "SW";
+                }
             }
 
+            previous_x = me.getX();
+            previous_y = me.getY();
+            
+        }   
+
+        public void mouseMoved( MouseEvent me ) {
+            g = getGraphics();
+
+            for( int i=0; i<shapes.size(); i++ ) {
+                Shape s = shapes.elementAt( i );
+
+                g.setColor( s.color );
+                if( s.type.equals("rect") ) {
+                    g.drawRect( s.start_x, s.start_y, s.width, s.height );
+                }
+                else if( s.type.equals("oval") ){ 
+                    g.drawOval( s.start_x, s.start_y, s.width, s.height );
+                }
+            }     
         }
 
         public void mouseReleased( MouseEvent me ) {
             first = true;
+            g = getGraphics(); 
+    
+            if( !penInput ) {
+                shapes.add( shape );
+            }
+            
+            for( int i=0; i<shapes.size(); i++ ) {
+                Shape s = shapes.elementAt( i );
+
+                g.setColor( s.color );
+                if( s.type.equals("rect") ) {
+                    g.drawRect( s.start_x, s.start_y, s.width, s.height );
+                }
+                else if( s.type.equals("oval") ){ 
+                    g.drawOval( s.start_x, s.start_y, s.width, s.height );
+                }
+            }
+        }
+    }
+
+    public void temp() {
+        repaint();
+        g = getGraphics();        
+
+        for( int i=0; i<shapes.size(); i++ ) {
+            Shape s = shapes.elementAt( i );
+
+            g.setColor( s.color );
+            if( s.type.equals("rect") ) {
+                g.drawRect( s.start_x, s.start_y, s.width, s.height );
+            }
+            else if( s.type.equals("oval") ){ 
+                g.drawOval( s.start_x, s.start_y, s.width, s.height );
+            }
+        }     
+    }
+
+    class UndoEvent extends KeyAdapter {
+        public void keyPressed( KeyEvent ke ) 
+        {
+            if( ke.getKeyCode() == KeyEvent.VK_CONTROL ) {
+                ControlPressed = true;
+            }
+            else if( ControlPressed ) {
+                if( ke.getKeyCode() == KeyEvent.VK_Z ) {
+                    if( shapes.size() == 0 ){
+                        return;
+                    }
+                    shapes.setSize( shapes.size()-1 );      
+                    repaint();
+                } 
+            }
+            else {
+                ControlPressed = false;
+            }
         }
     }
 
     public Canvas() {
-        g = getGraphics();
-        
         MyListener myListener = new MyListener();
         this.addMouseListener( myListener);
         this.addMouseMotionListener( myListener );
+        this.addKeyListener( new UndoEvent() );
     }
 }
 
@@ -205,7 +490,7 @@ public class Question19 extends Frame {
         ToolBar t = new ToolBar( c );
 
         t.setBounds( 0, 55, currentDimension.width, currentDimension.height / 5 );
-        c.setBounds( 0, currentDimension.height / 5, currentDimension.width, currentDimension.height - currentDimension.height/5 );
+        c.setBounds( 0, currentDimension.height / 4 , currentDimension.width, currentDimension.height - currentDimension.height/5 );
 
         // adding the componenets 
         add( t );
